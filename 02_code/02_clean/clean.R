@@ -1,74 +1,83 @@
-import_and_clean <- function(inPath = "01_data/00_initial_data/AA5M - business hours only.csv",
-                      sep = ";",
-                      dec = ",",
-                      format = c("%d/%m/%Y %I:%M:%S %p",
-                                 "%Y-%m-%d %H:%M:%S"),
-                      n_substr_first = 1,
-                      rem_cols = c("Symbol",
-                                   "Volume",
-                                   "VWAP",
-                                   "Trades"),
-                      date_col = "Date",
-                      time_col = "Time",
-                      open_col = "Open",
-                      close_col = "Close",
-                      low_col = "Low",
-                      high_col = "High",
-                      mode = c("csv", "xlsx")) {
+clean <- function(inPath = "01_data/00_initial_data/Popularity Index Analysis (Responses) - Form Responses 1.csv") {
   assertString(inPath)
-  assertCharacter(rem_cols)
-  assertCharacter(mode)
-  assertCharacter(format)
-  assertCharacter(sep)
-  assertSubset(sep, choices = c(",", ";", ".", "\t"))
-  assertCharacter(dec)
-  assertSubset(dec, choices = c(",", ";", ".", "\t"))
-  assertFALSE(dec == sep)
-  assertInt(n_substr_first, lower = 1)
-  mode <- match.arg(mode, choices = c("csv", "xlsx"))
   
-  # importing
-  if(mode == "xlsx") {
-    dt_raw <- as.data.table(readxl::read_xlsx(path =
-                                                inPath))
-    n_substr_first <- 12 
-  }
-  if(mode == "csv") {
-    dt_raw <- fread(file = inPath, sep = sep, dec = dec)
-    if(ncol(dt_raw) <= 6) {
-      stop("importing went wrong. Make sure you have set the arguments:
-           sep, dec and format  right")
-      }
-  }
+  dt_raw <- fread(inPath)
 
-  assertNumeric(dt_raw[[open_col]])
-  assertNumeric(dt_raw[[close_col]])
-  assertNumeric(dt_raw[[high_col]])
-  assertNumeric(dt_raw[[low_col]])
-  assert(any(class(dt_raw[[date_col]]) %in% c("Date", "character")))
-  assert(any(class(dt_raw[[time_col]]) %in% c("POSIXct", "character")))
+  # column renaming ####
+  dt <- cleanColnames(dt_raw, camelCaseSep = "_", verbose = TRUE)
+  setnames(dt, 
+           "PopularityIndexOnlyUseMusicStaxIfSongHasBeenOutMoreThan28Days",
+           "PopularityIndex")
+
+  # numerical conversions ####
+  intend_num_cols <- c("StreamsLast28Days" ,                                           
+                       "ListenersLast28Days",                                          
+                       "SavesLast28Days",                                              
+                       "StreamsAllTime",                                               
+                       "ListenersAllTime",                                             
+                       "PopularityIndex",
+                       "CurrentSpotifyFollowers", 
+                       "StreamsLast7Days",
+                       "ListenersLast7Days",
+                       "SavesLast7Days",
+                       "NumberOfPlaylistsAllTime")
+  symbols <- c(",", ".", ";", "%", "&", " ", "`", "?")
+  pattern <- paste0("[", paste0(symbols, collapse = ","), 
+                    "]")
   
-  assertSubset(rem_cols, names(dt_raw))
-  dt <- dt_raw[, .SD, .SDcols = -rem_cols]
-  dt <- copy(dt)
-
-  # add new variables
-  date_time_vec <- paste(dt[["Date"]], substring(dt[["Time"]], 
-                                                 first = n_substr_first))
+  dt[, `:=`((intend_num_cols), mapply(function(x, name) {
+    x <- gsub(pattern = pattern, replacement = "", x = x)
+    is.na(x) <- x == ""
+    x <- as.numeric(x)
+    return(x)
+  }, .SD, intend_num_cols, SIMPLIFY = FALSE)), 
+  .SDcols = intend_num_cols]
+  assert(all(sapply(dt[, .SD, .SDcols = intend_num_cols], class) ==
+               "numeric"))
+  
+  
+  intended_mix_cols <- c("NumberOfBlogsThatCoveredTheSong")
+  symbols <- c(",", ".", ";", "%", "&", "`", "?", "<", ">")
+  pattern <- paste0("[", paste0(symbols, collapse = ","), 
+                    "]")
+  dt[, `:=`((paste0(intended_mix_cols, "_num")),
+                  mapply(function(x, name) {
+    x <- gsub(pattern = pattern, replacement = "", x = x)
+    is.na(x) <- x == ""
+    x <- as.numeric(x)
+    return(x)
+  }, .SD, intended_mix_cols, SIMPLIFY = FALSE)), 
+  .SDcols = intended_mix_cols]
+  assert(all(sapply(dt[, .SD, .SDcols = 
+                              paste0(intended_mix_cols, "_num")], class) ==
+               "numeric"))
+  
+  intended_POS_col <- c("Timestamp")
+  intended_Date_cols <- c("ReleaseDate")
+  
+  format <- c("%m/%d/%Y %H:%M:%S")
+  # format <- c("%Y-%m-%d %H:%M:%S")
+  
   date_time_vec_form <- as.POSIXct(strptime(
-    date_time_vec, format, tz = "UTC"))
-  if(sum(is.na(date_time_vec_form)) != 0) {
-    stop("Date_Time converting went wrong. Make sure you have set the argument:
-           format right")
-  } 
-
-  dt[, Date_Time := date_time_vec_form]
-  # order by time column
-  setorderv(dt, c("Date_Time"))
+    dt[[intended_POS_col]], format, tz = "UTC"))
+  dt[, (intended_POS_col) := date_time_vec_form]
   
-  dt[, row_number := 1:.N]
-  dt[, Timediff := shift(Date_Time, type = "lead") -
-       Date_Time]
-
-  return(invisible(dt))
+  intended_POS_col <- c("ReleaseDate")
+  format <- c("%m/%d/%Y")
+  # format <- c("%Y-%m-%d %H:%M:%S")
+  
+  date_time_vec_form <- as.POSIXct(strptime(
+    dt[[intended_POS_col]], format, tz = "UTC"))
+  dt[, (intended_POS_col) := date_time_vec_form]
+  
+  indended_char_cols <- c("ArtistName",                                                   
+                          "SongName",
+                          "EmailAddress",
+                          "PopularityIndexSource")
+  assert(length(unique(dt[["PopularityIndexSource"]])) == 2)
+  
+  fwrite(dt, file = "01_data/02_cleaned_data/dt_cleaned.csv")
+  # todo:
+  # check blogs better
+  
 }
