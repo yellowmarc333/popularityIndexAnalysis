@@ -9,8 +9,10 @@ sourceAll <- function(){
   source("02_code/08_utility/cleanColnames.R")
   source("02_code/08_utility/cleanNaNanInf.R")
   
+  source("02_code/01_import/import.R")
   source("02_code/02_clean/clean.R")
   source("02_code/04_prepare/prepare.R")
+  source("02_code/05_model/model.R")
 
 }
 

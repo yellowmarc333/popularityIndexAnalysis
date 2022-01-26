@@ -1,4 +1,6 @@
-prepare <- function(inPath = "01_data/02_cleaned_data/dt_cleaned.csv") {
+prepare <- function(inPath = "01_data/02_cleaned_data/dt_cleaned.csv",
+                    outPath1 = "01_data/04_prepared_data/dt_prepared_unfiltered.csv",
+                    outPath2 = "01_data/04_prepared_data/dt_prepared_filtered.csv") {
   assertString(inPath)
   
   dt <- fread("01_data/02_cleaned_data/dt_cleaned.csv")
@@ -30,17 +32,17 @@ prepare <- function(inPath = "01_data/02_cleaned_data/dt_cleaned.csv") {
   print("cleaning infinite values")
   dt <- cleanNaNanInf(dt, replacement = NA, verbose = TRUE)
   
-  fwrite(dt, file = "01_data/04_prepared_data/dt_prepared_unfiltered.csv")
-  # todo: musicstax/sfd autoadjustment of timestamp.
-  del_cols <- c("Timestamp", "ReleaseDate", "ArtistName", "EmailAddress",                        
-                "SongName", "NumberOfBlogsThatCoveredTheSong",
+  fwrite(dt, file = outPath1)
+
+  del_cols <- c("Timestamp", "ReleaseDate", "EmailAddress",                        
+                "NumberOfBlogsThatCoveredTheSong",
                 "PopularityIndexSource")
   print(paste(dt[is.na(PopularityIndex), .N],
               "invalid rows of target variable"))
   dt_filt <- dt[!is.na(PopularityIndex), .SD, .SDcols = - del_cols]
   assert(all(sapply(dt_filt, class) %in% c("numeric", "integer", "logical")))
   
-  fwrite(dt_filt, file = "01_data/04_prepared_data/dt_prepared_filtered.csv")
+  fwrite(dt_filt, file = outPath2)
 }
 
 
