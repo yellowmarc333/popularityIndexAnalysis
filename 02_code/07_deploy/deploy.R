@@ -1,9 +1,24 @@
 dt_main <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
 
-# analyze single data points
+# analyze individual data points
+pred_dt[data_point == 23]
 View(dt_main[ArtistSongId == 86])
+# for this data point, 10-11 would be more realistic
+# only thing is that 5 blogs covered the song
+pred_dt[data_point == 37]
+View(dt_main[ArtistSongId == 189])
+# just 1 blog covered, but overall more streams than compared to last 28 days.
+pred_dt[data_point == 35]
+View(dt_main[ArtistSongId == 198])
+# not really an explanation
+pred_dt[data_point == 72]
+View(dt_main[ArtistSongId == 8])
+dt_main[PopularityIndex >= 40, .N]
+# here just maybe not enough data with high PI scores
 
-
+pred_dt[data_point == 78]
+# here just maybe not enough data with high PI scores
+View(dt_main[ArtistSongId == 159])
 
 
 

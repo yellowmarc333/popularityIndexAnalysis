@@ -31,7 +31,10 @@ prepare <- function(inPath = "01_data/02_cleaned_data/dt_cleaned.csv",
   # clean infinite values ####
   print("cleaning infinite values")
   dt <- cleanNaNanInf(dt, replacement = NA, verbose = TRUE)
-
+  setcolorder(dt, c("ArtistSongId", "PopularityIndex", "Timestamp", 
+                    "DaysSinceRelease", "ReleaseDate"))
+  
+  
   fwrite(dt, file = outPath1)
 
   del_cols <- c("Timestamp", "ReleaseDate", "EmailAddress",                        
