@@ -48,6 +48,7 @@ model(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
 
 
 # todos####
+# include timestamp, where discover data was implemented.
 # integrate non anonoumized prepared data
 # if PI <1 multiplicate by 100
 # xxadd new own data
