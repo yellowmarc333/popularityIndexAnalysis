@@ -1,4 +1,4 @@
-integrate <- function(inPath,
+integrate_data <- function(inPath,
                       inPath2,
                       outPath,
                       time_col = "Timestamp",

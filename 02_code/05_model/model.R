@@ -2,6 +2,7 @@ model <- function(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
                   target_var = c("PopularityIndex"),
                   rm_cols = c("PopularityIndex", "ArtistSongId"),
                   order_col = "DaysSinceRelease",
+                  nrounds = 25,
                   outPath = paste0("01_data/05_model_data/model_data_",
                                    gsub(date(), pattern = "[ ,:]", replacement = ""),
                                    ".rds")) 
@@ -41,11 +42,11 @@ model <- function(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
   model_xg <- xgboost::xgb.train(eval_metric = "rmse",
                                  objective = "reg:squarederror",
                                  data = watchTrainMat, 
-                                 nrounds = 25, 
+                                 nrounds = nrounds, 
                                  watchlist = watchlist,
                                  verbose = 1)
   
-  imp <- xgb.importance(model = model_xg)
+
   
   predictions_xg <- predict(model_xg, 
                             newdata =  watchTestMat,
@@ -69,7 +70,8 @@ model <- function(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
   
   resList <- list(pred_dt = pred_dt,
                   metrics = list(MSE_xg = MSE_xg,
-                                 MAD_xg = MAD_xg))
+                                 MAD_xg = MAD_xg),
+                  model = model_xg)
                   #MSE_lm = MSE_lm,
                                  #MAD_lm = MAD_lm))
   
