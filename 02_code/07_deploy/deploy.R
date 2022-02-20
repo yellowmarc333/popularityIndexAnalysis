@@ -1,6 +1,137 @@
-dt_main <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
+extrafont::fonts()
+extrafont::font_import()
+loadfonts(device = "win")
+#extrafont::fonts()
+windowsFonts(Nunito = windowsFont("Nunito"))
+windowsFonts(CenturyGothic = windowsFont("Century Gothic"))
+windowsFonts(Ubuntu = windowsFont("Ubuntu"))
 
-# analyze individual data points
+resList <- readRDS("01_data/05_model_data/model_data_FriJan210816102022.rds")
+resList2 <- readRDS("01_data/05_model_data/model_data_WedJan260205562022.rds")
+resList3 <- readRDS("01_data/05_model_data/model_data_SunJan301659442022.rds")
+
+# mse comparison
+mad1 <- resList$metrics$MAD_xg
+mad2 <- resList2$metrics$MAD_xg
+mad3 <- resList3$metrics$MAD_xg
+
+
+dt_main <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
+model_data <- readRDS("01_data/05_model_data/model_data_SunJan301659442022.rds")
+
+
+pred_dt <- model_data$pred_dt
+
+
+# importance ####
+imp <- xgb.importance(model = resList3$model)
+ggObj <- ggplot(data = imp, aes(x = reorder(Feature, Gain),
+                                 y = Gain)) +
+  geom_col() +
+  coord_flip() +
+  labs(y = "Gain in XGBoost model",
+       x = "Variable",
+       title = "Variable Importance in XGBoost model"); ggObj
+ggsave(ggObj, filename = "01_data/07_deployed_data/var_importance_xg.pdf",
+       width = 10, height = 6)
+
+# actuals vs fitted ####
+pred_dt <- resList3[["pred_dt"]]
+setorderv(pred_dt, "actuals", 1)
+pred_dt[, data_point := 1:.N]
+
+base_size <- 13
+plotData <- melt(pred_dt, id.vars = c("data_point",
+                                      "ArtistSongId"))
+
+ggObj <- ggplot(plotData, aes(x = data_point,
+                              colour = variable)) +
+  geom_point(aes_string(y = "value"), 
+             alpha = 0.9, size = 3) +
+  geom_linerange(data = pred_dt, aes_string(x = "data_point",
+                            ymin = "actuals",
+                            ymax = "pred_xg"),
+                  inherit.aes = FALSE, linetype = "dashed", size = 0.3,
+                 alpha = 0.5) +
+  scale_y_continuous(breaks = seq(0, max(plotData[["value"]]), by = 5)) +
+  scale_x_continuous(breaks = seq(0, max(plotData[["data_point"]]), by = 5)) +
+  scale_color_manual(values = c(actuals = palette_green[2],
+                                pred_xg = palette_blue[2])) +
+  labs(title = "Evaluation Plot:  Comparison of predictions and true values",
+       subtitle = "Model:  XGboost",
+       x = "Data point in unseen data",
+       y = "Popularity Index",
+       color = "Type of point:") +
+  theme(text = element_text(family = "Ubuntu"),
+        axis.text.x = element_text(angle = 0, vjust = 0, size = base_size,
+                                   margin = margin(t = 0, r = 0, 
+                                                   b = 0, l = 0)),
+        axis.text.y = element_text(size = base_size,
+                                   margin = margin(t = 0, r = 0, 
+                                                   b = 0, l = 0)),
+        axis.title.x = element_text(size = base_size + 2,
+                                    margin = margin(t = 10, r = 0, 
+                                                    b = 0, l = 0)),
+        axis.title.y = element_text(size = base_size + 2,
+                                    margin = margin(t = 0, r = 10, 
+                                                    b = 0, l = 0)),
+        axis.ticks = element_line(colour = "gainsboro"),
+        plot.title = element_text(size = base_size + 4, hjust = 0.5,
+                                  margin = margin(t = 0, r = 0, 
+                                                  b = 10, l = 0)),
+        plot.subtitle = element_text(size = base_size , hjust = 0.5,
+                                     margin = margin(t = 0, r = 0, 
+                                                     b = 10, l = 0)),
+        legend.background = element_rect_round(radius = unit(0.1, "snpc"), 
+                                               fill = "ghostwhite",
+                                               colour = "gainsboro", 
+                                               linetype = "solid",
+                                               size = 0.5),
+        legend.title = element_text(size = base_size + 2),
+        legend.text = element_text(size = base_size),
+        legend.position = "top",
+        plot.background = element_rect(fill = "aliceblue"),
+        #panel.background = element_blank(),
+        panel.background = element_rect_round(fill = "ghostwhite",
+                                        colour = "gainsboro",
+                                        radius = unit(0.04, "snpc"),
+                                        size = 0.5, linetype = "solid"),
+        #panel.background = element_blank(),
+        panel.grid.major = element_line(colour = "gainsboro"),
+        #panel.grid.minor = element_line(colour = "gainsboro"),
+        panel.grid.minor = element_blank()); ggObj
+
+
+ggsave(ggObj, filename = "01_data/07_deployed_data/actuals_vs_fitted_example.pdf",
+       width = 10, height = 6,
+       device = cairo_pdf)
+logo <- readPNG("BG_gradient_GreyWhite.png",
+                native = TRUE)
+
+
+ggObj_logo <- ggObj +
+  inset_element(p = logo,
+                left = 0.2,
+                right = 0.9,
+                bottom = 0,
+                top = 1,
+                align_to = "full", on_top = FALSE); ggObj_logo
+
+plotData <- melt(pred_dt, id.vars = c("ArtistSongId"), 
+                 variable.name = "actual_fitted", 
+                 value.name = "value")
+
+
+ggObj <- ggplot(plotData, aes(x = ArtistSongId,
+                              y = value,
+                              colour = factor(actual_fitted))) +
+  geom_point(); ggObj
+
+
+
+
+
+# analyze individual data points ####
 pred_dt[data_point == 23]
 View(dt_main[ArtistSongId == 86])
 # for this data point, 10-11 would be more realistic
@@ -21,58 +152,45 @@ pred_dt[data_point == 78]
 View(dt_main[ArtistSongId == 159])
 
 
-
-resList <- readRDS("01_data/05_model_data/model_data_FriJan210816102022.rds")
-resList2 <- readRDS("01_data/05_model_data/model_data_WedJan260205562022.rds")
-resList3 <- readRDS("01_data/05_model_data/model_data_SunJan301659442022.rds")
-
-# mse comparison
-mad1 <- resList$metrics$MAD_xg
-mad2 <- resList2$metrics$MAD_xg
-mad3 <- resList3$metrics$MAD_xg
-
-# importantce ####
-imp <- xgb.importance(model = resList3$model)
-ggObj <- ggplot(data = imp, aes(x = reorder(Feature, Gain),
-                                 y = Gain)) +
-  geom_col() +
-  coord_flip() +
-  labs(y = "Gain in XGBoost model",
-       x = "Variable",
-       title = "Variable Importance in XGBoost model"); ggObj
-ggsave(ggObj, filename = "01_data/07_deployed_data/var_importance_xg.pdf",
-       width = 10, height = 6)
-
-pred_dt <- resList3[["pred_dt"]]
-setorderv(pred_dt, "actuals", 1)
-pred_dt[, data_point := 1:.N]
+# CP plots ####
+resList <- readRDS("01_data/05_model_data/model_data_SunFeb202255192022.rds")
 
 
-plotData <- pred_dt
-actual_var <- "actuals"
-model_var <- "pred_xg"
-ggObj <- ggplot(plotData, aes(x = data_point)) +
-  geom_point(aes_string(y = actual_var), 
-             col = "darkgreen", alpha = 0.8, size = 2) +
-  geom_point(aes_string(y = model_var),
-             col = "royalblue", alpha = 0.8, size = 2) +
-  scale_y_continuous(breaks = seq(0, max(plotData[[actual_var]]), by =2)) +
-  scale_x_continuous(breaks = seq(0, max(plotData[["data_point"]]), by =2)) +
-  labs(title = "Popularity Index",
-       subtitle = "actuals vs fitted, model: xgboost",
-       x = "Data point in unseen data",
-       y = "Popularity Index (green: actual, blue: fitted)") +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0)); ggObj
-ggsave(ggObj, filename = "01_data/07_deployed_data/actuals_vs_fitted_example.pdf",
-       width = 10, height = 6)
+model <- resList$model
+watchTrainMat <- resList$watchTrainMat
+trainData <- resList$trainData
+testData <- resList$testData
+data <- testData
+col <- "ListenersLast7Days"
+row_index <- 1
+
+ceteris_paribus_plot(model, data, row_index = 1, col,
+                     100)
+
+# todo: standardize variable
+# todo: ReleasePassed21Days als shape einführen
+# variable vs target
+dt_main <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
+names(dt_main)
+ggObj <- ggplot(dt_main, aes_string(y = "PopularityIndex")) +
+  geom_point(aes_string(x = "StreamsLast28Days")) + 
+  geom_point(aes_string(x = "ListenersLast7Days"), colour = "royalblue") + 
+  geom_point(aes_string(x = "ListenersLast28Days"), colour = "red") + 
+  geom_point(aes_string(x = "StreamsLast7Days"), colour = "green") + 
+  xlim(c(0, 10000)); ggObj
+
+
+ggObj <- ggplot(dt_main, aes_string(y = "PopularityIndex")) +
+  geom_point(aes_string(x = "SavesLast28Days_PerListener")) + 
+  geom_point(aes_string(x = "SavesLast7Days_PerListener"), colour = "royalblue") + 
+  #geom_point(aes_string(x = "ListenersLast28Days"), colour = "red") + 
+  #geom_point(aes_string(x = "StreamsLast7Days"), colour = "green") + 
+  xlim(c(0, 1)); ggObj
+  
 
 
 
-plotData <- melt(pred_dt, id.vars = c("ArtistSongId"), 
-                 variable.name = "actual_fitted", 
-                 value.name = "value")
 
-ggObj <- ggplot(plotData, aes(x = ArtistSongId,
-                              y = value,
-                              colour = factor(actual_fitted))) +
-  geom_point(); ggObj
+
+
+

@@ -71,12 +71,18 @@ model <- function(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
   resList <- list(pred_dt = pred_dt,
                   metrics = list(MSE_xg = MSE_xg,
                                  MAD_xg = MAD_xg),
-                  model = model_xg)
+                  model = model_xg,
+                  trainData = trainData,
+                  testData = testData,
+                  trainLabel = trainLabel,
+                  testLabel = testLabel,
+                  watchTrainMat = watchTrainMat,
+                  watchTestMat = watchTestMat)
                   #MSE_lm = MSE_lm,
                                  #MAD_lm = MAD_lm))
   
   saveRDS(resList, outPath)
-  
+  return(invisible(resList))
 }
 
 # l

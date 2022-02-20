@@ -1,28 +1,38 @@
 dt <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
 
-
-# means for PI of 30 ####
-lower <- 30
-upper <- 33
-filt <- dt[between(PopularityIndex, lower, upper)]
-aggr <- filt[, lapply(.SD, mean)]
-aggr[, .(CurrentSpotifyFollowers, StreamsLast28Days, ListenersLast28Days,
+# means for PI ####
+lower <- 20
+upper <- 22
+filt <- dt[between(PopularityIndex, lower, upper, incbounds = TRUE)]
+aggr20 <- filt[, lapply(.SD, function(x) mean(x, na.rm = TRUE))]
+aggr20[, .(StreamsLast28Days, ListenersLast28Days,
          SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
          SavesLast7Days)]
 
-aggr[, .(StreamsLast28Days)]/1381
+lower <- 30
+upper <- 33
+filt <- dt[between(PopularityIndex, lower, upper)]
+aggr30 <- filt[, lapply(.SD, function(x) mean(x, na.rm = TRUE))]
+aggr30[, .(StreamsLast28Days, ListenersLast28Days,
+         SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
+         SavesLast7Days)]
 
-aggr[, .(ListenersLast28Days)]/617
 
-aggr[, .(SavesLast28Days)]/204
 
-aggr[, .(StreamsLast7Days)]/259
+lower <- 40
+upper <- 42
+filt <- dt[between(PopularityIndex, lower, upper)]
+aggr40 <- filt[, lapply(.SD, function(x) mean(x, na.rm = TRUE))]
 
-aggr[, .(ListenersLast7Days)]/142
+aggr_binded <- rbind(aggr20, aggr30, aggr40)
+aggr_binded[, PI_Lower := c(20, 30, 40)]
+aggr_binded[, PI_Upper := c(22, 32, 42)]
+aggr_binded[, .(PI_Lower, PI_Upper, StreamsLast28Days, ListenersLast28Days,
+         SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
+         SavesLast7Days)]
 
-aggr[, .(SavesLast7Days)]/40
 
-# means for discover weekly streams
+# discover weekly streams ####
 dt[, DiscoverWeeklyPush := ifelse(DiscoverWeeklyStreamsLast28Days <= 0 |
                                     is.na(DiscoverWeeklyStreamsLast28Days), 
                                 "no", "yes")]
