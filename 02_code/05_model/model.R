@@ -1,12 +1,24 @@
 model <- function(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
                   target_var = c("PopularityIndex"),
                   rm_cols = c("PopularityIndex", "ArtistSongId"),
-                  order_col = "DaysSinceRelease",
+                  order_col = "ArtistSongId",
                   nrounds = 25,
+                  load_test_ind = TRUE,
                   outPath = paste0("01_data/05_model_data/model_data_",
                                    gsub(date(), pattern = "[ ,:]", replacement = ""),
                                    ".rds")) 
 {
+  # input vars:
+  # inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv"
+  # target_var = c("PopularityIndex")
+  # rm_cols = c("PopularityIndex", "ArtistSongId")
+  # order_col = "ArtistSongId"
+  # nrounds = 25
+  # outPath = paste0("01_data/05_model_data/model_data_",
+  #                  gsub(date(), pattern = "[ ,:]", replacement = ""),
+  #                  ".rds")
+  # load_test_ind = TRUE
+  
   assertString(inPath)
   assertString(target_var)
   assertCharacter(order_col)
@@ -15,16 +27,22 @@ model <- function(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
   dt <- fread(inPath)
   
   setorderv(dt, order_col, 1, na.last = TRUE)
-  ind_group_0 <- dt[ReleasePassed21Days == 0, which = TRUE]
-  ind_group_1 <- dt[ReleasePassed21Days == 1, which = TRUE]
-  set.seed(123)
-  test_factor <- 0.3
-  sample_ind_group_0 <- sample(x = ind_group_0,
-                               size = floor(length(ind_group_0) * test_factor))
-  sample_ind_group_1 <- sample(x = ind_group_1,
-                               size = floor(length(ind_group_1) * test_factor))
-  test_ind <- c(sample_ind_group_0, sample_ind_group_1)
   
+  if(!load_test_ind) {
+    ind_group_0 <- dt[ReleasePassed21Days == 0, which = TRUE]
+    ind_group_1 <- dt[ReleasePassed21Days == 1, which = TRUE]
+    set.seed(123)
+    test_factor <- 0.25
+    sample_ind_group_0 <- sample(x = ind_group_0,
+                                 size = floor(length(ind_group_0) * test_factor))
+    sample_ind_group_1 <- sample(x = ind_group_1,
+                                 size = floor(length(ind_group_1) * test_factor))
+    test_ind <- c(sample_ind_group_0, sample_ind_group_1)
+    saveRDS(test_ind, "01_data/05_model_data/test_ind.rds")
+  } else {
+    test_ind <- readRDS("01_data/05_model_data/test_ind.rds")
+  }
+
   trainData <- dt[-test_ind, .SD, .SDcols = -rm_cols]
   testData <- dt[test_ind, .SD, .SDcols = -rm_cols]
   
@@ -45,8 +63,6 @@ model <- function(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
                                  nrounds = nrounds, 
                                  watchlist = watchlist,
                                  verbose = 1)
-  
-
   
   predictions_xg <- predict(model_xg, 
                             newdata =  watchTestMat,

@@ -1,30 +1,17 @@
-extrafont::fonts()
-extrafont::font_import()
-loadfonts(device = "win")
-#extrafont::fonts()
-windowsFonts(Nunito = windowsFont("Nunito"))
-windowsFonts(CenturyGothic = windowsFont("Century Gothic"))
-windowsFonts(Ubuntu = windowsFont("Ubuntu"))
+resList <- readRDS("01_data/05_model_data/model_data_MonFeb281708592022.rds")
 
-resList <- readRDS("01_data/05_model_data/model_data_FriJan210816102022.rds")
-resList2 <- readRDS("01_data/05_model_data/model_data_WedJan260205562022.rds")
-resList3 <- readRDS("01_data/05_model_data/model_data_SunJan301659442022.rds")
 
 # mse comparison
-mad1 <- resList$metrics$MAD_xg
-mad2 <- resList2$metrics$MAD_xg
-mad3 <- resList3$metrics$MAD_xg
+mad <- resList$metrics$MAD_xg
 
 
 dt_main <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
-model_data <- readRDS("01_data/05_model_data/model_data_SunJan301659442022.rds")
 
-
-pred_dt <- model_data$pred_dt
+pred_dt <- resList$pred_dt
 
 
 # importance ####
-imp <- xgb.importance(model = resList3$model)
+imp <- xgb.importance(model = resList$model)
 ggObj <- ggplot(data = imp, aes(x = reorder(Feature, Gain),
                                  y = Gain)) +
   geom_col() +
@@ -36,7 +23,7 @@ ggsave(ggObj, filename = "01_data/07_deployed_data/var_importance_xg.pdf",
        width = 10, height = 6)
 
 # actuals vs fitted ####
-pred_dt <- resList3[["pred_dt"]]
+pred_dt <- resList[["pred_dt"]]
 setorderv(pred_dt, "actuals", 1)
 pred_dt[, data_point := 1:.N]
 
@@ -105,30 +92,17 @@ ggObj <- ggplot(plotData, aes(x = data_point,
 ggsave(ggObj, filename = "01_data/07_deployed_data/actuals_vs_fitted_example.pdf",
        width = 10, height = 6,
        device = cairo_pdf)
-logo <- readPNG("BG_gradient_GreyWhite.png",
-                native = TRUE)
-
-
-ggObj_logo <- ggObj +
-  inset_element(p = logo,
-                left = 0.2,
-                right = 0.9,
-                bottom = 0,
-                top = 1,
-                align_to = "full", on_top = FALSE); ggObj_logo
-
-plotData <- melt(pred_dt, id.vars = c("ArtistSongId"), 
-                 variable.name = "actual_fitted", 
-                 value.name = "value")
-
-
-ggObj <- ggplot(plotData, aes(x = ArtistSongId,
-                              y = value,
-                              colour = factor(actual_fitted))) +
-  geom_point(); ggObj
-
-
-
+# logo <- readPNG("BG_gradient_GreyWhite.png",
+#                 native = TRUE)
+# 
+# 
+# ggObj_logo <- ggObj +
+#   inset_element(p = logo,
+#                 left = 0.2,
+#                 right = 0.9,
+#                 bottom = 0,
+#                 top = 1,
+#                 align_to = "full", on_top = FALSE); ggObj_logo
 
 
 # analyze individual data points ####
@@ -167,17 +141,35 @@ row_index <- 1
 ceteris_paribus_plot(model, data, row_index = 1, col,
                      100)
 
-# todo: standardize variable
-# todo: ReleasePassed21Days als shape einführen
-# variable vs target
+# todo: insert titles, labs
+# variable vs target ####
 dt_main <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
 names(dt_main)
-ggObj <- ggplot(dt_main, aes_string(y = "PopularityIndex")) +
-  geom_point(aes_string(x = "StreamsLast28Days")) + 
-  geom_point(aes_string(x = "ListenersLast7Days"), colour = "royalblue") + 
-  geom_point(aes_string(x = "ListenersLast28Days"), colour = "red") + 
-  geom_point(aes_string(x = "StreamsLast7Days"), colour = "green") + 
-  xlim(c(0, 10000)); ggObj
+
+plot_dt <- dt_main[, .SD, .SDcols = c("ArtistSongId",
+                                      "ReleasePassed21Days",
+                                       "PopularityIndex",
+                                       "StreamsLast28Days",
+                                       "ListenersLast28Days",
+                                       "StreamsLast7Days",
+                                       "ListenersLast7Days")]
+plot_dt_long <- melt(plot_dt, id.vars = c("ArtistSongId",
+                                          "PopularityIndex",
+                                          "ReleasePassed21Days"))
+plot_dt_long[, value_std := value/max(value, na.rm = TRUE),
+             by = .(variable)]
+
+
+ggObj <- ap_scatter_plot(plot_dt_long = plot_dt_long,
+                         x_col = "value_std",
+                         y_col = "PopularityIndex", 
+                         colour_col = "variable",
+                         shape_col = "ReleasePassed21Days",
+                         round_digits_axis_x = 2,
+                         round_digits_axis_y = 0); ggObj
+ggsave(ggObj, 
+       filename = "01_data/07_deployed_data/var_vs_target_4imp.pdf",
+       width = 10, height = 6, device = cairo_pdf)
 
 
 ggObj <- ggplot(dt_main, aes_string(y = "PopularityIndex")) +

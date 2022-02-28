@@ -7,6 +7,7 @@ integrate_data <- function(inPath,
   assertString(inPath2)
   assertString(outPath)
   assertCharacter(id_cols)
+
   
   dt1 <- fread(inPath)
   dt2 <- fread(inPath2)
@@ -14,7 +15,9 @@ integrate_data <- function(inPath,
   assertSubset(c(id_cols, time_col), names(dt2))
   
   # checking that the columns overlap
-  assert(sum(names(dt1) %in% names(dt2)) == min(ncol(dt1), ncol(dt2)))
+  assert(sum(names(dt1) %in% names(dt2)) >= min(ncol(dt1), ncol(dt2)) - 2)
+  dt2[, Timestamp := as.POSIXct(Timestamp)]
+  
   
   dt <- rbind(dt1, dt2, fill = TRUE)
   

@@ -5,7 +5,7 @@ sourceAll()
 # import community data ####
 # users: do not execute
 import(inPath =
-         "01_data/00_initial_data/Popularity Index Analysis (Responses) - Form Responses 3.csv",
+         "01_data/00_initial_data/Popularity Index Analysis (Responses) - Form Responses 4.csv",
        outPath = "01_data/01_imported_data/dt_com_imported.csv",
        format = c("%m/%d/%Y %H:%M:%S"),
        time_col = c("Timestamp"))
@@ -37,6 +37,7 @@ model(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
       rm_cols = c("PopularityIndex", "ArtistSongId"),
       order_col = "DaysSinceRelease",
       nrounds = 35,
+      load_test_ind = TRUE,
       outPath = paste0("01_data/05_model_data/model_data_",
                        gsub(date(), pattern = "[ ,:]", replacement = ""),
                        ".rds"))
@@ -45,16 +46,14 @@ model(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
 
 
 
-
-
 # todos####
 # include timestamp, where discover data was implemented.
 # integrate non anonoumized prepared data
 # if PI <1 multiplicate by 100
-# xxadd new own data
-# xxintegrate own old data
 # clean: check/ convert blogs better
 # todo: preparedata: musicstax/sfd autoadjustment of timestamp.
-# overall: adjust outpaths
 # prepare: indicate if 28days mean < 7day mean (factor)
 
+# xxoverall: adjust outpaths
+# xxadd new own data
+# xxintegrate own old data

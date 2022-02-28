@@ -3,7 +3,7 @@ prepare <- function(inPath = "01_data/02_cleaned_data/dt_cleaned.csv",
                     outPath2 = "01_data/04_prepared_data/dt_prepared_filtered.csv") {
   assertString(inPath)
   
-  dt <- fread("01_data/02_cleaned_data/dt_cleaned.csv")
+  dt <- fread(inPath)
   
   # aut. feature engineering ####
   mean_cols <- c("StreamsLast28Days", "SavesLast28Days", 
@@ -33,7 +33,7 @@ prepare <- function(inPath = "01_data/02_cleaned_data/dt_cleaned.csv",
   dt <- cleanNaNanInf(dt, replacement = NA, verbose = TRUE)
   setcolorder(dt, c("ArtistSongId", "PopularityIndex", "Timestamp", 
                     "DaysSinceRelease", "ReleaseDate"))
-  
+  sapply(dt, class)
   
   fwrite(dt, file = outPath1)
 

@@ -5,11 +5,10 @@ clean <- function(inPath = "01_data/03_integrated_data/dt_integrated.csv",
   
   dt_raw <- fread(inPath)
   
-  # column renaming ####
   dt <- cleanColnames(dt_raw, camelCaseSep = "_", verbose = TRUE)
   setnames(dt, 
-           "PopularityIndexOnlyUseMusicStaxIfSongHasBeenOutMoreThan28Days",
-           "PopularityIndex")
+           c("PopularityIndexOnlyUseMusicStaxIfSongHasBeenOutMoreThan28DaysOnlyEnterWholeNumbersNoPercentOrDecimal"),
+           c("PopularityIndex"))
   
   # numerical conversions ####
   intend_num_cols <- c("StreamsLast28Days" ,                                           
@@ -22,7 +21,12 @@ clean <- function(inPath = "01_data/03_integrated_data/dt_integrated.csv",
                        "StreamsLast7Days",
                        "ListenersLast7Days",
                        "SavesLast7Days",
-                       "NumberOfPlaylistsAllTime")
+                       "NumberOfPlaylistsAllTime",
+                       "DiscoverWeeklyStreamsLast28Days",
+                       "DiscoverWeeklyStreamsLast7Days",
+                       "ReleaseRadarStreamsLast28Days",
+                       "ReleaseRadarStreamsLast7Days")
+  
   symbols <- c(",", ".", ";", "%", "&", " ", "`", "?")
   pattern <- paste0("[", paste0(symbols, collapse = ","), 
                     "]")
