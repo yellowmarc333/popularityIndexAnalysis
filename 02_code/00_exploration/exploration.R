@@ -5,17 +5,21 @@ lower <- 20
 upper <- 22
 filt <- dt[between(PopularityIndex, lower, upper, incbounds = TRUE)]
 aggr20 <- filt[, lapply(.SD, function(x) mean(x, na.rm = TRUE))]
-aggr20[, .(StreamsLast28Days, ListenersLast28Days,
+res20 <- aggr20[, .(StreamsLast28Days, ListenersLast28Days,
          SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
          SavesLast7Days)]
+res20[, Lower := lower]
+res20[, Upper := upper]
 
 lower <- 30
 upper <- 33
 filt <- dt[between(PopularityIndex, lower, upper)]
 aggr30 <- filt[, lapply(.SD, function(x) mean(x, na.rm = TRUE))]
-aggr30[, .(StreamsLast28Days, ListenersLast28Days,
+res30 <- aggr30[, .(StreamsLast28Days, ListenersLast28Days,
          SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
          SavesLast7Days)]
+res30[, Lower := lower]
+res30[, Upper := upper]
 
 
 
@@ -23,11 +27,14 @@ lower <- 40
 upper <- 42
 filt <- dt[between(PopularityIndex, lower, upper)]
 aggr40 <- filt[, lapply(.SD, function(x) mean(x, na.rm = TRUE))]
+res40 <- aggr40[, .(StreamsLast28Days, ListenersLast28Days,
+                    SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
+                    SavesLast7Days)]
+res40[, Lower := lower]
+res40[, Upper := upper]
 
-aggr_binded <- rbind(aggr20, aggr30, aggr40)
-aggr_binded[, PI_Lower := c(20, 30, 40)]
-aggr_binded[, PI_Upper := c(22, 32, 42)]
-aggr_binded[, .(PI_Lower, PI_Upper, StreamsLast28Days, ListenersLast28Days,
+aggr_binded <- rbind(res20, res30, res40)
+aggr_binded[, .(Lower, Upper, StreamsLast28Days, ListenersLast28Days,
          SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
          SavesLast7Days)]
 

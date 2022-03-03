@@ -3,6 +3,7 @@ resList <- readRDS("01_data/05_model_data/model_data_MonFeb281708592022.rds")
 
 # mse comparison
 mad <- resList$metrics$MAD_xg
+mad
 
 
 dt_main <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
@@ -27,7 +28,7 @@ pred_dt <- resList[["pred_dt"]]
 setorderv(pred_dt, "actuals", 1)
 pred_dt[, data_point := 1:.N]
 
-base_size <- 13
+base_size <- 8
 plotData <- melt(pred_dt, id.vars = c("data_point",
                                       "ArtistSongId"))
 
@@ -86,7 +87,8 @@ ggObj <- ggplot(plotData, aes(x = data_point,
         #panel.background = element_blank(),
         panel.grid.major = element_line(colour = "gainsboro"),
         #panel.grid.minor = element_line(colour = "gainsboro"),
-        panel.grid.minor = element_blank()); ggObj
+        panel.grid.minor = element_blank())
+ggObj
 
 
 ggsave(ggObj, filename = "01_data/07_deployed_data/actuals_vs_fitted_example.pdf",
@@ -143,10 +145,10 @@ ceteris_paribus_plot(model, data, row_index = 1, col,
 
 # todo: insert titles, labs
 # variable vs target ####
-dt_main <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
-names(dt_main)
+dt <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
+names(dt)
 
-plot_dt <- dt_main[, .SD, .SDcols = c("ArtistSongId",
+plot_dt <- dt[, .SD, .SDcols = c("ArtistSongId",
                                       "ReleasePassed21Days",
                                        "PopularityIndex",
                                        "StreamsLast28Days",
@@ -158,21 +160,28 @@ plot_dt_long <- melt(plot_dt, id.vars = c("ArtistSongId",
                                           "ReleasePassed21Days"))
 plot_dt_long[, value_std := value/max(value, na.rm = TRUE),
              by = .(variable)]
-
+#todo: 
+# insert x, y, title, subtitle arguments
 
 ggObj <- ap_scatter_plot(plot_dt_long = plot_dt_long,
                          x_col = "value_std",
                          y_col = "PopularityIndex", 
                          colour_col = "variable",
                          shape_col = "ReleasePassed21Days",
+                         x = "between 0 and 1 scaled values",
+                         y = "Popularity Index",
+                         title = "Scaled variable vs PI",
+                         colour = "Variable",
                          round_digits_axis_x = 2,
-                         round_digits_axis_y = 0); ggObj
+                         round_digits_axis_y = 0)
+ggObj
+
 ggsave(ggObj, 
        filename = "01_data/07_deployed_data/var_vs_target_4imp.pdf",
        width = 10, height = 6, device = cairo_pdf)
 
 
-ggObj <- ggplot(dt_main, aes_string(y = "PopularityIndex")) +
+ggObj <- ggplot(dt, aes_string(y = "PopularityIndex")) +
   geom_point(aes_string(x = "SavesLast28Days_PerListener")) + 
   geom_point(aes_string(x = "SavesLast7Days_PerListener"), colour = "royalblue") + 
   #geom_point(aes_string(x = "ListenersLast28Days"), colour = "red") + 

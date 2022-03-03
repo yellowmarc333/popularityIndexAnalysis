@@ -1,0 +1,441 @@
+---
+title: "Popularity Index Analysis"
+author: "Marc Schmieder"
+date: "2/28/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+  library(data.table)
+  library(checkmate)
+  library(ggplot2)
+  library(readxl)
+  library(xgboost)
+  library(extrafont)
+  library(png)
+  library(patchwork)
+  library(devtools)
+  library(elementalist)
+```
+
+```{r, include=FALSE}
+
+# fonts
+extrafont::fonts()
+# extrafont::font_import()
+loadfonts(device = "win")
+#extrafont::fonts()
+windowsFonts(Nunito = windowsFont("Nunito"))
+windowsFonts(CenturyGothic = windowsFont("Century Gothic"))
+windowsFonts(Ubuntu = windowsFont("Ubuntu"))
+
+
+# color schemes
+palette_blue <- c("#68979B",
+                  "#417C81",
+                  "#236267",
+                  "#236267",
+                  "#012F34")
+
+
+palette_red <- c("#FFAAAA",
+                 "#D46A6A",
+                 "#AA3939",
+                 "#801515",
+                 "#550000")
+  
+palette_green <- c("#88CC88",
+                   "#55AA55",
+                   "#2D882D",
+                   "#116611",
+                   "#004400")
+  
+palette_brown <- c("#FFD2AA",
+                   "#D49C6A",
+                   "#AA6E39",
+                   "#804715",
+                   "#552800")
+
+
+ap_scatter_plot <- function(plot_dt_long, 
+                            title = "",
+                            subtitle = "",
+                            x = "", 
+                            y = "",
+                            fill = "",
+                            colour = "",
+                            x_col = "value",
+                            y_col, 
+                            fill_col = "variable", 
+                            colour_col = "variable", 
+                            shape_col = NULL,
+                            base_size = 12,
+                            round_digits_axis_x = 0,
+                            round_digits_axis_y = 0) {
+  assertDataTable(plot_dt_long)
+  assertString(x_col)
+  assertString(y_col)
+  assertString(fill_col)
+  if(!is.null(shape_col)) {
+    assertString(shape_col)
+    assertSubset(shape_col, names(plot_dt_long))
+  }
+  assertSubset(c(x_col, y_col), names(plot_dt_long))
+  assertNumber(base_size, lower = 0)
+
+  x_col_range <- range(na.omit(plot_dt_long[[x_col]]))
+  y_col_range <- range(na.omit(plot_dt_long[[y_col]]))
+
+  
+  
+  ggObj <- ggplot(plot_dt_long, aes_string(x = x_col,
+                                colour = colour_col)) +
+    geom_point(aes_string(y = y_col), 
+               alpha = 0.8, size = 2.5) +
+    # geom_linerange(data = pred_dt, aes_string(x = "data_point",
+    #                                           ymin = "actuals",
+    #                                           ymax = "pred_xg"),
+    #                inherit.aes = FALSE, linetype = "dashed", size = 0.3,
+    #                alpha = 0.5) +
+    scale_x_continuous(breaks = round(seq(x_col_range[1],
+                                          x_col_range[2],
+                                          length.out = 10),
+                                      round_digits_axis_x)) +
+    scale_y_continuous(breaks = round(seq(y_col_range[1],
+                                          y_col_range[2],
+                                          length.out = 10),
+                                      round_digits_axis_y)) +
+    # scale_color_manual(values = c(actuals = palette_green[2],
+    #                               pred_xg = palette_blue[2])) +
+    labs(title = title,
+         subtitle = subtitle,
+         x = x,
+         y = x,
+         color = colour) +
+    theme(#text = element_text(family = "Ubuntu"),
+          axis.text.x = element_text(angle = 0, vjust = 0, size = base_size,
+                                     margin = margin(t = 0, r = 0, 
+                                                     b = 0, l = 0)),
+          axis.text.y = element_text(size = base_size,
+                                     margin = margin(t = 0, r = 0, 
+                                                     b = 0, l = 0)),
+          axis.title.x = element_text(size = base_size + 2,
+                                      margin = margin(t = 10, r = 0, 
+                                                      b = 0, l = 0)),
+          axis.title.y = element_text(size = base_size + 2,
+                                      margin = margin(t = 0, r = 10, 
+                                                      b = 0, l = 0)),
+          axis.ticks = element_line(colour = "gainsboro"),
+          plot.title = element_text(size = base_size + 4, hjust = 0.5,
+                                    margin = margin(t = 0, r = 0, 
+                                                    b = 10, l = 0)),
+          plot.subtitle = element_text(size = base_size , hjust = 0.5,
+                                       margin = margin(t = 0, r = 0, 
+                                                       b = 10, l = 0)),
+          legend.background = element_rect_round(radius = unit(0.1, "snpc"), 
+                                                 fill = "ghostwhite",
+                                                 colour = "gainsboro", 
+                                                 linetype = "solid",
+                                                 size = 0.5),
+          legend.title = element_text(size = base_size + 2),
+          legend.text = element_text(size = base_size),
+          legend.position = "top",
+          plot.background = element_rect(fill = "aliceblue"),
+          #panel.background = element_blank(),
+          panel.background = element_rect_round(fill = "ghostwhite",
+                                                colour = "gainsboro",
+                                                radius = unit(0.04, "snpc"),
+                                                size = 0.5, linetype = "solid"),
+          #panel.background = element_blank(),
+          panel.grid.major = element_line(colour = "gainsboro"),
+          panel.grid.minor = element_line(colour = "gainsboro"))
+  
+  
+  return(ggObj)
+}
+
+
+
+```
+
+
+# 1. Exploration
+## 1.1 Dataset attributes
+
+
+```{r pressure, echo=FALSE}
+dt <- fread("01_data/04_prepared_data/dt_prepared_unfiltered.csv")
+```
+
+This document summarizes a first draft from the Spotify Popularity Index (PI)
+analysis.
+In the current state, 331 data points from the community were provided,
+whereas each data point equals one song at a given time. The data points were
+anonymized by creating an artist/song ID.
+Overall, 31 variables (columns) were provided or engineered through existing
+data. The column names are
+
+```{r, echo=FALSE}
+names(dt)
+```
+
+As to be seen later in the analysis, the variables 
+```{r}
+c("StreamsLast28Days", "ListenersLast28Days",
+  "StreamsLast7Days", "ListenersLast7Days")
+```
+are the most important ones for the later conducted model, predicting
+the Popularity Index
+
+
+## 1.2 Mean values for different PI
+
+As certain PI numbers are criterias for getting into algorithmic
+playlists, the following table shows the mean values in the data for
+PI indices of 20-22, 30-32 and 40-42. With that information, an artist can estimate what streams/listeners/saves they need to achieve those PI's.
+
+
+```{r, include=FALSE}
+# means for PI ####
+lower <- 20
+upper <- 22
+filt <- dt[between(PopularityIndex, lower, upper, incbounds = TRUE)]
+aggr20 <- filt[, lapply(.SD, function(x) mean(x, na.rm = TRUE))]
+res20 <- aggr20[, .(StreamsLast28Days, ListenersLast28Days,
+         SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
+         SavesLast7Days)]
+res20[, Lower := lower]
+res20[, Upper := upper]
+
+lower <- 30
+upper <- 32
+filt <- dt[between(PopularityIndex, lower, upper)]
+aggr30 <- filt[, lapply(.SD, function(x) mean(x, na.rm = TRUE))]
+res30 <- aggr30[, .(StreamsLast28Days, ListenersLast28Days,
+         SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
+         SavesLast7Days)]
+res30[, Lower := lower]
+res30[, Upper := upper]
+
+
+
+lower <- 40
+upper <- 42
+filt <- dt[between(PopularityIndex, lower, upper)]
+aggr40 <- filt[, lapply(.SD, function(x) mean(x, na.rm = TRUE))]
+res40 <- aggr40[, .(StreamsLast28Days, ListenersLast28Days,
+                    SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
+                    SavesLast7Days)]
+res40[, Lower := lower]
+res40[, Upper := upper]
+
+aggr_binded <- rbind(res20, res30, res40)
+
+```
+
+```{r, echo=FALSE}
+aggr_binded[, .(Lower, Upper, StreamsLast28Days, ListenersLast28Days,
+         SavesLast28Days, StreamsLast7Days, ListenersLast7Days,
+         SavesLast7Days)]
+```
+
+
+
+## 1.3 Variables plottet vs PI
+
+
+```{r, echo=FALSE}
+plot_dt <- dt[, .SD, .SDcols = c("ArtistSongId",
+                                      "ReleasePassed21Days",
+                                       "PopularityIndex",
+                                       "StreamsLast28Days",
+                                       "ListenersLast28Days",
+                                       "StreamsLast7Days",
+                                       "ListenersLast7Days")]
+plot_dt_long <- melt(plot_dt, id.vars = c("ArtistSongId",
+                                          "PopularityIndex",
+                                          "ReleasePassed21Days"))
+plot_dt_long[, value_std := value/max(value, na.rm = TRUE),
+             by = .(variable)]
+
+
+ggObj <- ap_scatter_plot(plot_dt_long = plot_dt_long,
+                         x_col = "value_std",
+                         y_col = "PopularityIndex", 
+                         colour_col = "variable",
+                         shape_col = "ReleasePassed21Days",
+                         x = "between 0 and 1 scaled values",
+                         y = "Popularity Index",
+                         title = "Scaled variable vs PI",
+                         colour = "Variable",
+                         base_size = 8,
+                         round_digits_axis_x = 2,
+                         round_digits_axis_y = 0)
+ggObj
+
+```
+The grafik shows the between 0 and 1 scaled values of the Streams last 28/7 days
+and listeners last 28/7 days. It can be seen that the Popularity index is 
+dependent in a (not perfect) quadratic function from those variables.
+
+# 2. Model
+
+This is a regression problem where any model can predict continuous
+numbers, but the true values can only be of integer type.
+As an algorithm, the XGboost regression tree was chosen, a (still) state of the
+art machine learning algorithm that builds on tree boosting.
+
+The model was trained on 263 obversations (75 percent) and fitted on 68 
+(25 percent) observations (never seen by the model). The test set of 68
+data points was sampled at random, but taking into account an equal distribution
+between new songs (<21 days) and older songs.
+
+## 2.1 Model performance
+
+```{r, echo=FALSE}
+resList <- readRDS("01_data/05_model_data/model_data_MonFeb281708592022.rds")
+
+
+# mse comparison
+mad <- resList$metrics$MAD_xg
+
+```
+```{r, echo=FALSE}
+mad
+```
+The mean absolute deviation (mad) of 1.52 states that the predictions of the model
+deviate in mean 1.52 from the true PI. For example if the true PI for 
+one song is 32, we can expect, that the model will predict a value that is
+around 33.5 or 30.5. So the model is working well but not perfect. 
+There can be several reasons for that the prediction of the model 
+is not perfect.
+
+1. Quality of data: false numbers entered or false PI entered
+2. Time-delay of PI (updates every few days, also in Spotify for artist it
+is not updated in real time)
+3. Rounding of PI: Internally the formula from Spotify probably results
+in a continues number (e.g. 24.32) but is then rounded for the public display.
+This is sort of imperfect information that can bias the model.
+4. There are factors/variables that contribute to the formula that are not 
+publicly accessible/not in the community driven dataset.
+5. The algorithm itself lacks potential (model tuning could increase 
+performance or choosing another model like random forest or a neural net)
+
+I personally suspect that it is a combination of 1-3 and think that 4 is 
+rather unlikely.
+
+
+## 2.3 Variable importance
+
+```{r, echo=FALSE}
+imp <- xgb.importance(model = resList$model)
+ggObj <- ggplot(data = imp, aes(x = reorder(Feature, Gain),
+                                 y = Gain)) +
+  geom_col() +
+  coord_flip() +
+  labs(y = "Gain in XGBoost model",
+       x = "Variable",
+       title = "Variable Importance in XGBoost model")
+ggObj
+```
+The grafik shows the variable importance of the computed model. That is,
+how much each variable contributes to the model. It is seen that 
+streams last 28 days and listeners last 28 days are by far the most important
+variables. It should be noted that other variables that are highly correlate
+with StreamsLast28Days and ListenersLast28Days are important too, but the 
+XGBoost model only needs one representor for those sets of variables.
+It can be observed, that the number of saves do appear very late in the 
+variable importance ranking.
+
+## 2.3 Graph of predictions
+
+Lets take a look at the predictions and true values of the test data set.
+
+```{r, include=FALSE}
+pred_dt <- resList[["pred_dt"]]
+setorderv(pred_dt, "actuals", 1)
+pred_dt[, data_point := 1:.N]
+
+
+base_size <- 8
+plotData <- melt(pred_dt, id.vars = c("data_point",
+                                      "ArtistSongId"))
+```
+
+
+```{r, echo=FALSE}
+ggObj <- ggplot(plotData, aes(x = data_point,
+                              colour = variable)) +
+  geom_point(aes_string(y = "value"), 
+             alpha = 0.9, size = 3) +
+  geom_linerange(data = pred_dt, aes_string(x = "data_point",
+                            ymin = "actuals",
+                            ymax = "pred_xg"),
+                  inherit.aes = FALSE, linetype = "dashed", size = 0.3,
+                 alpha = 0.5) +
+  scale_y_continuous(breaks = seq(0, max(plotData[["value"]]), by = 5)) +
+  scale_x_continuous(breaks = seq(0, max(plotData[["data_point"]]), by = 5)) +
+  scale_color_manual(values = c(actuals = palette_green[2],
+                                pred_xg = palette_blue[2])) +
+  labs(title = "Evaluation Plot:  Comparison of predictions and true values",
+       subtitle = "Model:  XGboost",
+       x = "Data point in unseen data",
+       y = "Popularity Index",
+       color = "Type of point:") +
+  theme(#text = element_text(family = "Ubuntu"),
+        axis.text.x = element_text(angle = 0, vjust = 0, size = base_size,
+                                   margin = margin(t = 0, r = 0, 
+                                                   b = 0, l = 0)),
+        axis.text.y = element_text(size = base_size,
+                                   margin = margin(t = 0, r = 0, 
+                                                   b = 0, l = 0)),
+        axis.title.x = element_text(size = base_size + 2,
+                                    margin = margin(t = 10, r = 0, 
+                                                    b = 0, l = 0)),
+        axis.title.y = element_text(size = base_size + 2,
+                                    margin = margin(t = 0, r = 10, 
+                                                    b = 0, l = 0)),
+        axis.ticks = element_line(colour = "gainsboro"),
+        plot.title = element_text(size = base_size + 4, hjust = 0.5,
+                                  margin = margin(t = 0, r = 0, 
+                                                  b = 10, l = 0)),
+        plot.subtitle = element_text(size = base_size , hjust = 0.5,
+                                     margin = margin(t = 0, r = 0, 
+                                                     b = 10, l = 0)),
+        legend.background = element_rect_round(radius = unit(0.1, "snpc"), 
+                                               fill = "ghostwhite",
+                                               colour = "gainsboro", 
+                                               linetype = "solid",
+                                               size = 0.5),
+        legend.title = element_text(size = base_size + 2),
+        legend.text = element_text(size = base_size),
+        legend.position = "top",
+        plot.background = element_rect(fill = "aliceblue"),
+        #panel.background = element_blank(),
+        panel.background = element_rect_round(fill = "ghostwhite",
+                                        colour = "gainsboro",
+                                        radius = unit(0.04, "snpc"),
+                                        size = 0.5, linetype = "solid"),
+        #panel.background = element_blank(),
+        panel.grid.major = element_line(colour = "gainsboro"),
+        #panel.grid.minor = element_line(colour = "gainsboro"),
+        panel.grid.minor = element_blank())
+ggObj
+
+```
+
+The grafik shows the prediction of the XGBoost model vs the actual values.
+Most observations were predicted with decent accuracy. Only the predictions
+of some points show a serious deviation from the actual values. It could be 
+of merit to look into those data points to see which reasons 1-5 from 2.2
+do apply.
+
+
+
+
+
+
+
+

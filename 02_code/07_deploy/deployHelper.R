@@ -43,7 +43,14 @@ ceteris_paribus_plot <- function(model, data, row_index,
 }
 
 
-ap_scatter_plot <- function(plot_dt_long, x_col = "value",
+ap_scatter_plot <- function(plot_dt_long, 
+                            title = "",
+                            subtitle = "",
+                            x = "", 
+                            y = "",
+                            fill = "",
+                            colour = "",
+                            x_col = "value",
                             y_col, 
                             fill_col = "variable", 
                             colour_col = "variable", 
@@ -54,7 +61,7 @@ ap_scatter_plot <- function(plot_dt_long, x_col = "value",
   assertDataTable(plot_dt_long)
   assertString(x_col)
   assertString(y_col)
-  assertString(fill)
+  assertString(fill_col)
   if(!is.null(shape_col)) {
     assertString(shape_col)
     assertSubset(shape_col, names(plot_dt_long))
@@ -68,8 +75,7 @@ ap_scatter_plot <- function(plot_dt_long, x_col = "value",
   
   
   ggObj <- ggplot(plot_dt_long, aes_string(x = x_col,
-                                colour = colour_col,
-                                shape = shape_col)) +
+                                colour = colour_col)) +
     geom_point(aes_string(y = y_col), 
                alpha = 0.8, size = 2.5) +
     # geom_linerange(data = pred_dt, aes_string(x = "data_point",
@@ -87,12 +93,12 @@ ap_scatter_plot <- function(plot_dt_long, x_col = "value",
                                       round_digits_axis_y)) +
     # scale_color_manual(values = c(actuals = palette_green[2],
     #                               pred_xg = palette_blue[2])) +
-    labs(title = "Evaluation Plot:  Comparison of predictions and true values",
-         subtitle = "Model:  XGboost",
-         x = "Data point in unseen data",
-         y = "Popularity Index",
-         color = "Type of point:") +
-    theme(text = element_text(family = "Ubuntu"),
+    labs(title = title,
+         subtitle = subtitle,
+         x = x,
+         y = x,
+         color = colour) +
+    theme(#text = element_text(family = "Ubuntu"),
           axis.text.x = element_text(angle = 0, vjust = 0, size = base_size,
                                      margin = margin(t = 0, r = 0, 
                                                      b = 0, l = 0)),
@@ -128,8 +134,7 @@ ap_scatter_plot <- function(plot_dt_long, x_col = "value",
                                                 size = 0.5, linetype = "solid"),
           #panel.background = element_blank(),
           panel.grid.major = element_line(colour = "gainsboro"),
-          panel.grid.minor = element_line(colour = "gainsboro")); ggObj
-  
+          panel.grid.minor = element_line(colour = "gainsboro"))
   
   
   return(ggObj)

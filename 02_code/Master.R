@@ -44,7 +44,7 @@ model(inPath = "01_data/04_prepared_data/dt_prepared_filtered.csv",
 
 # deployment ####
 
-
+# note: other font is not working in R markdown
 
 # todos####
 # include timestamp, where discover data was implemented.
